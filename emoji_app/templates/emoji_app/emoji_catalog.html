@@ -68,17 +68,11 @@
                     {% if display_style == 'html' %}
                         {{ emoji.html_code|safe }}
                     {% else %}
-                        {{ emoji.unicode_char }}
+                        {{ emoji.unicode|safe }}
                     {% endif %}
                 </div>
                 <h5 class="text-center">{{ emoji.name }}</h5>
                 <p class="text-center text-muted small">{{ emoji.group }}</p>
-                <div class="text-center">
-                    <button class="btn btn-sm btn-outline-secondary copy-btn"
-                            data-emoji="{% if display_style == 'html' %}{{ emoji.html_code }}{% else %}{{ emoji.unicode_char }}{% endif %}">
-                        Copy
-                    </button>
-                </div>
             </div>
         </div>
         {% endfor %}
@@ -90,101 +84,53 @@
         </div>
     {% endif %}
 </div>
-
-{% if request.user.is_superuser %}
-<div class="mt-5 p-3 bg-light">
-    <h5>Debug Information</h5>
-    <p>Number of emojis: {{ emojis|length }}</p>
-    <p>Category filter: "{{ category_filter }}"</p>
-    <p>Available categories: {{ categories|join:", " }}</p>
-</div>
-{% endif %}
 {% endblock %}
 
 {% block extra_js %}
+{% if user.is_authenticated %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Copy to clipboard functionality
-        const copyButtons = document.querySelectorAll('.copy-btn');
+        const csrfToken = '{{ csrf_token }}';
+        const favoriteButtons = document.querySelectorAll('.favorite-btn');
 
-        copyButtons.forEach(button => {
+        favoriteButtons.forEach(button => {
             button.addEventListener('click', function() {
-                const emoji = this.dataset.emoji;
+                const emojiName = this.dataset.emojiName;
+                const emojiCategory = this.dataset.emojiCategory;
+                const emojiGroup = this.dataset.emojiGroup;
+                const emojiHtmlCode = this.dataset.emojiHtmlCode;
+                const emojiUnicode = this.dataset.emojiUnicode;
 
-                // Create a temporary textarea element to copy from
-                const textarea = document.createElement('textarea');
-                textarea.value = emoji;
-                document.body.appendChild(textarea);
-                textarea.select();
-
-                try {
-                    // Execute copy command
-                    document.execCommand('copy');
-
-                    // Change button text temporarily to indicate success
-                    const originalText = this.textContent;
-                    this.textContent = 'Copied!';
-                    this.classList.remove('btn-outline-secondary');
-                    this.classList.add('btn-success');
-
-                    // Reset button after 2 seconds
-                    setTimeout(() => {
-                        this.textContent = originalText;
-                        this.classList.remove('btn-success');
-                        this.classList.add('btn-outline-secondary');
-                    }, 2000);
-                } catch (err) {
-                    console.error('Failed to copy: ', err);
-                }
-
-                // Remove the temporary textarea
-                document.body.removeChild(textarea);
-            });
-        });
-    });
-
-    {% if user.is_authenticated %}
-    // Favorite functionality
-    const csrfToken = '{{ csrf_token }}';
-    const favoriteButtons = document.querySelectorAll('.favorite-btn');
-
-    favoriteButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const emojiName = this.dataset.emojiName;
-            const emojiCategory = this.dataset.emojiCategory;
-            const emojiGroup = this.dataset.emojiGroup;
-            const emojiHtmlCode = this.dataset.emojiHtmlCode;
-            const emojiUnicode = this.dataset.emojiUnicode;
-
-            fetch('{% url "toggle_favorite" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': csrfToken
-                },
-                body: new URLSearchParams({
-                    'emoji_name': emojiName,
-                    'emoji_category': emojiCategory,
-                    'emoji_group': emojiGroup,
-                    'emoji_html_code': emojiHtmlCode,
-                    'emoji_unicode': emojiUnicode
+                fetch('{% url "toggle_favorite" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: new URLSearchParams({
+                        'emoji_name': emojiName,
+                        'emoji_category': emojiCategory,
+                        'emoji_group': emojiGroup,
+                        'emoji_html_code': emojiHtmlCode,
+                        'emoji_unicode': emojiUnicode
+                    })
                 })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.is_favorite) {
-                        this.classList.add('active');
-                    } else {
-                        this.classList.remove('active');
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.is_favorite) {
+                            this.classList.add('active');
+                        } else {
+                            this.classList.remove('active');
+                        }
                     }
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
             });
         });
     });
-    {% endif %}
 </script>
+{% endif %}
 {% endblock %}

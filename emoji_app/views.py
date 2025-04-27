@@ -19,7 +19,7 @@ def emoji_catalog(request):
     search_query = request.GET.get('search', '')
     sort_by = request.GET.get('sort_by', 'name')
     category_filter = request.GET.get('category', '')
-    display_style = request.GET.get('style', 'html')
+    display_style = request.GET.get('style', 'native')
 
     # Fetch emojis from service
     emoji_service = EmojiService()
@@ -104,6 +104,7 @@ def toggle_favorite(request):
 def favorites(request):
     """User's favorite emojis view"""
     user_favorites = Favorite.objects.filter(user=request.user).select_related('emoji')
+    display_style = request.GET.get('style', 'native')
 
     # Process emoji data to include unicode character
     emojis = []
@@ -121,11 +122,10 @@ def favorites(request):
     context = {
         'emojis': emojis,
         'favorites': [fav.emoji.name for fav in user_favorites],
-        'display_style': request.GET.get('style', 'html'),
+        'display_style': display_style,
     }
 
     return render(request, 'emoji_app/favorites.html', context)
-
 
 def logout_view(request):
     """Custom logout view that accepts both GET and POST requests"""
