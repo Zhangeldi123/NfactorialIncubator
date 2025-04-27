@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 from .models import Emoji
 
 
@@ -65,6 +66,25 @@ class EmojiService:
         return emojis
 
     @staticmethod
+    def unicode_to_character(unicode_str):
+        """Convert Unicode code point string to actual character"""
+        if not unicode_str:
+            return ""
+
+        # Remove 'U+' prefix and split by space if there are multiple code points
+        code_points = unicode_str.replace('U+', '')
+        if ' ' in code_points:
+            code_points = code_points.split(' ')
+        else:
+            code_points = [code_points]
+
+        # Convert each code point to character and join
+        try:
+            return ''.join([chr(int(cp, 16)) for cp in code_points])
+        except ValueError:
+            return unicode_str  # Return original if conversion fails
+
+    @staticmethod
     def process_emoji_data(emoji_data):
         """Process emoji data to a consistent format"""
         processed_data = []
@@ -74,14 +94,18 @@ class EmojiService:
             category = emoji.get('category', '')
             group = emoji.get('group', '')
             html_code = emoji.get('htmlCode', [''])[0] if emoji.get('htmlCode') else ''
-            unicode = emoji.get('unicode', [''])[0] if emoji.get('unicode') else ''
+
+            # Get unicode and convert to actual character
+            unicode_raw = emoji.get('unicode', [''])[0] if emoji.get('unicode') else ''
+            unicode_char = EmojiService.unicode_to_character(unicode_raw)
 
             processed_data.append({
                 'name': name,
                 'category': category,
                 'group': group,
                 'html_code': html_code,
-                'unicode': unicode,
+                'unicode': unicode_raw,  # Original unicode code point
+                'unicode_char': unicode_char  # Actual unicode character
             })
 
         return processed_data

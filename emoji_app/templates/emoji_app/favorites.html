@@ -30,7 +30,7 @@
             <div class="emoji-card p-3">
                 <div class="d-flex justify-content-between align-items-start">
                     <span class="badge bg-secondary">{{ emoji.category }}</span>
-                    <button class="favorite-btn active" 
+                    <button class="favorite-btn active"
                             data-emoji-name="{{ emoji.name }}"
                             data-emoji-category="{{ emoji.category }}"
                             data-emoji-group="{{ emoji.group }}"
@@ -43,11 +43,24 @@
                     {% if display_style == 'html' %}
                         {{ emoji.html_code|safe }}
                     {% else %}
-                        {{ emoji.unicode|safe }}
+                        {% if emoji.unicode_char %}
+                            {{ emoji.unicode_char }}
+                        {% else %}
+                            <!-- Convert unicode to character on the fly -->
+                            <script>
+                                document.write(String.fromCodePoint(parseInt('{{ emoji.unicode|slice:"2:" }}', 16)));
+                            </script>
+                        {% endif %}
                     {% endif %}
                 </div>
                 <h5 class="text-center">{{ emoji.name }}</h5>
                 <p class="text-center text-muted small">{{ emoji.group }}</p>
+                <div class="text-center">
+                    <button class="btn btn-sm btn-outline-secondary copy-btn"
+                            data-emoji="{% if display_style == 'html' %}{{ emoji.html_code }}{% else %}{% if emoji.unicode_char %}{{ emoji.unicode_char }}{% else %}{{ emoji.unicode }}{% endif %}{% endif %}">
+                        Copy
+                    </button>
+                </div>
             </div>
         </div>
         {% endfor %}
@@ -64,9 +77,48 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Copy to clipboard functionality
+        const copyButtons = document.querySelectorAll('.copy-btn');
+
+        copyButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const emoji = this.dataset.emoji;
+
+                // Create a temporary textarea element to copy from
+                const textarea = document.createElement('textarea');
+                textarea.value = emoji;
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                try {
+                    // Execute copy command
+                    document.execCommand('copy');
+
+                    // Change button text temporarily to indicate success
+                    const originalText = this.textContent;
+                    this.textContent = 'Copied!';
+                    this.classList.remove('btn-outline-secondary');
+                    this.classList.add('btn-success');
+
+                    // Reset button after 2 seconds
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                        this.classList.remove('btn-success');
+                        this.classList.add('btn-outline-secondary');
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy: ', err);
+                }
+
+                // Remove the temporary textarea
+                document.body.removeChild(textarea);
+            });
+        });
+
+        // Favorite functionality
         const csrfToken = '{{ csrf_token }}';
         const favoriteButtons = document.querySelectorAll('.favorite-btn');
-        
+
         favoriteButtons.forEach(button => {
             button.addEventListener('click', function() {
                 const emojiName = this.dataset.emojiName;
@@ -74,7 +126,7 @@
                 const emojiGroup = this.dataset.emojiGroup;
                 const emojiHtmlCode = this.dataset.emojiHtmlCode;
                 const emojiUnicode = this.dataset.emojiUnicode;
-                
+
                 fetch('{% url "toggle_favorite" %}', {
                     method: 'POST',
                     headers: {
@@ -94,7 +146,7 @@
                     if (data.success && !data.is_favorite) {
                         // Remove the card from the favorites page
                         this.closest('.col-md-3').remove();
-                        
+
                         // Check if there are any emojis left
                         if (document.querySelectorAll('.emoji-card').length === 0) {
                             location.reload(); // Reload to show the empty state

@@ -105,13 +105,18 @@ def favorites(request):
     """User's favorite emojis view"""
     user_favorites = Favorite.objects.filter(user=request.user).select_related('emoji')
 
-    emojis = [{
-        'name': fav.emoji.name,
-        'category': fav.emoji.category,
-        'group': fav.emoji.group,
-        'html_code': fav.emoji.html_code,
-        'unicode': fav.emoji.unicode,
-    } for fav in user_favorites]
+    # Process emoji data to include unicode character
+    emojis = []
+    for fav in user_favorites:
+        unicode_char = EmojiService.unicode_to_character(fav.emoji.unicode)
+        emojis.append({
+            'name': fav.emoji.name,
+            'category': fav.emoji.category,
+            'group': fav.emoji.group,
+            'html_code': fav.emoji.html_code,
+            'unicode': fav.emoji.unicode,
+            'unicode_char': unicode_char,
+        })
 
     context = {
         'emojis': emojis,
