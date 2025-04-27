@@ -1,0 +1,145 @@
+{% extends 'emoji_app/base.html' %}
+
+{% block title %}EmojiHub - Emoji Catalog{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Emoji Catalog</h1>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search" value="{{ search_query }}" placeholder="Search emojis...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                            <option value="{{ category }}" {% if category == category_filter %}selected{% endif %}>{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="sort_by" class="form-label">Sort By</label>
+                        <select class="form-select" id="sort_by" name="sort_by">
+                            <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Name</option>
+                            <option value="category" {% if sort_by == 'category' %}selected{% endif %}>Category</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="style" class="form-label">Display Style</label>
+                        <select class="form-select" id="style" name="style">
+                            <option value="html" {% if display_style == 'html' %}selected{% endif %}>HTML</option>
+                            <option value="unicode" {% if display_style == 'unicode' %}selected{% endif %}>Unicode</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    {% if emojis %}
+        {% for emoji in emojis %}
+        <div class="col-md-3 mb-4">
+            <div class="emoji-card p-3">
+                <div class="d-flex justify-content-between align-items-start">
+                    <span class="badge bg-secondary">{{ emoji.category }}</span>
+                    {% if user.is_authenticated %}
+                    <button class="favorite-btn {% if emoji.name in favorites %}active{% endif %}"
+                            data-emoji-name="{{ emoji.name }}"
+                            data-emoji-category="{{ emoji.category }}"
+                            data-emoji-group="{{ emoji.group }}"
+                            data-emoji-html-code="{{ emoji.html_code }}"
+                            data-emoji-unicode="{{ emoji.unicode }}">
+                        ★
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="emoji-display">
+                    {% if display_style == 'html' %}
+                        {{ emoji.html_code|safe }}
+                    {% else %}
+                        {{ emoji.unicode|safe }}
+                    {% endif %}
+                </div>
+                <h5 class="text-center">{{ emoji.name }}</h5>
+                <p class="text-center text-muted small">{{ emoji.group }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No emojis found. Try adjusting your search criteria.
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% if request.user.is_superuser %}
+<div class="mt-5 p-3 bg-light">
+    <h5>Debug Information</h5>
+    <p>Number of emojis: {{ emojis|length }}</p>
+    <p>Category filter: "{{ category_filter }}"</p>
+    <p>Available categories: {{ categories|join:", " }}</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if user.is_authenticated %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const csrfToken = '{{ csrf_token }}';
+        const favoriteButtons = document.querySelectorAll('.favorite-btn');
+
+        favoriteButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const emojiName = this.dataset.emojiName;
+                const emojiCategory = this.dataset.emojiCategory;
+                const emojiGroup = this.dataset.emojiGroup;
+                const emojiHtmlCode = this.dataset.emojiHtmlCode;
+                const emojiUnicode = this.dataset.emojiUnicode;
+
+                fetch('{% url "toggle_favorite" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: new URLSearchParams({
+                        'emoji_name': emojiName,
+                        'emoji_category': emojiCategory,
+                        'emoji_group': emojiGroup,
+                        'emoji_html_code': emojiHtmlCode,
+                        'emoji_unicode': emojiUnicode
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.is_favorite) {
+                            this.classList.add('active');
+                        } else {
+                            this.classList.remove('active');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            });
+        });
+    });
+</script>
+{% endif %}
+{% endblock %}
